@@ -11,10 +11,10 @@ Docker works pretty well on OS X, but volumes can be slow to reflect filesystem 
 
 *Note: this happens with pre 2011 Macs ie. Docker Toolbox + VirtualBox and newer Macs running Docker for Mac and XHyve.*
 
-TL;DR INotify events move slowly host -> guest on OS X, so we add a container that syncs using Unison or Rsync.
+TL;DR INotify events move slowly host -> guest, so we add a container that syncs using Unison or Rsync.
 
-https://github.com/docker/for-mac/issues/77
-https://forums.docker.com/t/file-access-in-mounted-volumes-extremely-slow-cpu-bound/8076
+https://github.com/docker/for-mac/issues/77  
+[file-access-in-mounted-volumes-extremely-slow-cpu-bound](https://forums.docker.com/t/file-access-in-mounted-volumes-extremely-slow-cpu-bound/8076)
 
 ### docker-sync
 Docker container with 2-way sync using Unison or 1-way using Rsync  
@@ -35,12 +35,12 @@ options:
   #verbose: true
   #max-attempt: 30
 syncs:
-  app-sync: # becomes the volume name in compose.yml
-    src: './' # the directory on the host system
+  app-sync:                 # becomes the volume name in compose.yml
+    src: './'               # the directory on the host system
     sync_host_ip: '192.168.99.100' # localhost for docker for mac
-    sync_host_port: 10872 # unique port
-    sync_strategy: 'unison' #or rsync
-    sync_userid: '1000' #id for www-data
+    sync_host_port: 10872   # unique port
+    sync_strategy: 'unison' # or rsync
+    sync_userid: '1000'     # id for www-data
 ```
 
 #### Usage
@@ -54,14 +54,14 @@ docker-sync stop
 docker-sync clean
 
 
-# *When low on memory, docker-sync will have trouble syncing. This manifests itself as "copyconflict" files.*  
-# *If you find copy conflicts everywhere, free up some memory*  
-# *Hopefully you're working in your own branch (you're working in your own branch right?) and you can git reset --hard [previous commit sha]*
+# When low on memory, docker-sync will have trouble syncing. This manifests itself as "copyconflict" files.  
+# If you find copy conflicts everywhere, free up some memory  
+# Hopefully you're working in your own branch (you're working in your own branch right?) and you can git reset --hard [previous commit sha]
 ```
 
 #### Alternatives  
 docker-osx-dev (1 way with Rsync)
-https://github.com/brikis98/docker-osx-dev
+https://github.com/brikis98/docker-osx-dev  
 https://www.ybrikman.com/writing/2015/05/19/docker-osx-dev/
 
 
@@ -74,7 +74,7 @@ https://www.ybrikman.com/writing/2015/05/19/docker-osx-dev/
 docker run --rm jamesway/scrapy
 ```
 
-### volume ( -v )
+### mount volume ( -v )
 ```
 # -v /full/host/path:/container/path
 # to mount the current local directory to /app in container
@@ -82,9 +82,9 @@ docker run --rm jamesway/scrapy
 docker run --rm -v $(pwd):/app jamesway/python36-django startproject myproject
 ```  
 
-$(pwd) is a great replacement for my project's directory, but how do I know where to mount my project directory in the container?
+$(pwd) makes sense for my project's directory, but how do I know where to mount my project directory in the container?
 
-1. Inspect the image's dockerfile for a WORK_DIR. Mounting to the WORK_DIR works most of the time.
+1. Inspect the image's dockerfile for a WORK_DIR. Mounting to the WORK_DIR is probably what you want most of the time.
 2. Specify a WORK_DIR in the container with the ( -w ) flag so that you can mount to it.
 
 ### work directory ( -w )
@@ -92,9 +92,18 @@ Specifes the work directory in the container.
 
 *If the dockerfile species no WORK_DIR, the default WORK_DIR is / (root) which can't be mounted with ( -v )*
 ```
-#  -w overrides the WORK_DIR specified in the image's dockerfile.
+# -w overrides the WORK_DIR specified in the image's dockerfile.
 
 docker run --rm -w /src -v $(pwd):/src jamesway/php71-cli composer dump-autoload
+
+# hello world
+mkdir hello && echo 'print ("hello world")' > hello/helloworld.py
+docker run --rm  -v $(pwd):/code -w /code/hello python:3.6.4-alpine python helloworld.py
+
+or  
+
+mkdir hello && echo '<?php echo "hello world"; ?>' > /hello/helloworld.php
+docker run --rm  -v $(pwd):/app -w /app php:7.1-cli-alpine php helloworld.php
 ```
 
 ### interactive terminal( -it )
@@ -111,15 +120,6 @@ docker run --rm -it python:3.6-slim /bin/bash
 
 # no bash in alpine images :(
 docker run --rm  -it python:3.6.4-alpine python /bin/sh
-
-# hello world
-echo 'print ("hello world")' > helloworld.py
-docker run --rm  -v $(pwd):/code -w /code python:3.6.4-alpine python helloworld.py
-
-or  
-
-echo '<?php echo "hello world"; ?>' > helloworld.php
-docker run --rm  -v $(pwd):/app -w /app php:7.1-cli-alpine php helloworld.php
 ```
 
 ## Commands
@@ -147,6 +147,7 @@ docker build --rm -t scrapy-selenium-chrome:latest .
 ** A RUN layer is independent of other RUN layers. Installing packages in one RUN and removing them in another has NO effect on image size**
 - Use Alpine Base Images - It's easier said than done, but Alpine images are super slim compared to Debian images. The downside is you will have to install and configure just about every aspect of your image manually.
 
+eg: [https://hub.docker.com/r/jamesway/scrapy/~/dockerfile/]
 
 ### Containers
 It's a good idea to run keep an eye on and remove dangling containers.
