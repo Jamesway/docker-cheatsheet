@@ -60,13 +60,13 @@ docker-sync clean
 ```
 
 #### Alternatives  
-docker-osx-dev (1 way with Rsync)
+docker-osx-dev (1 way with Rsync)  
 https://github.com/brikis98/docker-osx-dev  
 https://www.ybrikman.com/writing/2015/05/19/docker-osx-dev/
 
 
 ## Common Flags
-### remove container ( --rm )
+### Remove Container ( --rm )
 ```
 # Removes a container after execution has stopped - no dangling containers
 # Note: the --rm flag needs to come after "docker run" or "docker exec"
@@ -74,7 +74,7 @@ https://www.ybrikman.com/writing/2015/05/19/docker-osx-dev/
 docker run --rm jamesway/scrapy
 ```
 
-### mount volume ( -v )
+### Mount Volume ( -v )
 ```
 # -v /full/host/path:/container/path
 # to mount the current local directory to /app in container
@@ -96,17 +96,16 @@ Specifes the work directory in the container.
 
 docker run --rm -w /src -v $(pwd):/src jamesway/php71-cli composer dump-autoload
 
-# hello world
+# hello world in a different directory
 mkdir hello && echo 'print ("hello world")' > hello/helloworld.py
-docker run --rm  -v $(pwd):/code -w /code/hello python:3.6.4-alpine python helloworld.py
+docker run --rm  -w /code/hello -v $(pwd):/code python:3.6.4-alpine python helloworld.py
 
-or  
-
-mkdir hello && echo '<?php echo "hello world"; ?>' > /hello/helloworld.php
-docker run --rm  -v $(pwd):/app -w /app php:7.1-cli-alpine php helloworld.php
+# or in PHP
+mkdir hello && echo '<?php echo "hello world\n"; ?>' > hello/helloworld.php
+docker run --rm  -w /app/hello -v $(pwd):/app php:7.1-cli-alpine php helloworld.php
 ```
 
-### interactive terminal( -it )
+### Interactive Terminal( -it )
 If you want to pass input to container prompts, interact with an interpreter or shell into a container you need ( -it ).
 ```
 # python interpreter
