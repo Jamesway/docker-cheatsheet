@@ -1,20 +1,29 @@
-# Docker OS X Cheatsheat
-Docker works pretty well on OS X, but volumes can be slow to reflect filesystem changes without some tweaking.
+# Docker Cheatsheat
+You probably already know, but Docker is fantastic for:
+- Development - No installation into your local environment, so no "it works on my machine conversations."
+- Experimentation - You can easily try different languages and versions of different languages which is helpful for quickly determining if your code will run on the latest Python.
+- Scaling - containers are made to scale up or down, with docker swarm, or other tools like Kubernetes or Rancher.
+- Moving Legacy Apps to the Cloud - Getting your app running in a docker container means it will run in the cloud.
+- Removing stubborn stains
 
-### Slow Volumes with OS X
+## Slow Volumes with OS X
+Docker works pretty well on OS X, but volumes can be slow to reflect filesystem changes without some tweaking.
 
 *Note: this happens with pre 2011 Macs ie. Docker Toolbox + VirtualBox and newer Macs running Docker for Mac and XHyve.*
 
-TL;DR INotify events don't move host -> guest on OS X, so we add a container that syncs using Unison or Rsync.
+TL;DR INotify events move slowly host -> guest on OS X, so we add a container that syncs using Unison or Rsync.
 
 https://github.com/docker/for-mac/issues/77
 https://forums.docker.com/t/file-access-in-mounted-volumes-extremely-slow-cpu-bound/8076
 
 ### docker-sync
-
-2-way sync with Unison or 1-way with Rsync, requires ruby
+Docker container with 2-way sync using Unison or 1-way using Rsync  
 http://docker-sync.io/
 
+#### Requirements
+- Ruby
+
+#### Installation
 ```
 gem install docker-sync
 ```
@@ -34,58 +43,76 @@ syncs:
     sync_userid: '1000' #id for www-data
 ```
 
+#### Usage
 ```
+# start the sync container
 docker-sync start
-```
 
-*Note: when stopping docker-sync, ruby seems to barf with no "apparent" negative side-effects. Also, it's a good idea to "clean" after stopping to remove the lingering volume(s)/container(s).*
-```
+# When stopping, ruby seems to barf with no "apparent" negative side-effects.  
+# Also, it's a good idea to "clean" after stopping to remove the volume with the container
 docker-sync stop
 docker-sync clean
+
+
+# *When low on memory, docker-sync will have trouble syncing. This manifests itself as "copyconflict" files.*  
+# *If you find copy conflicts everywhere, free up some memory*  
+# *Hopefully you're working in your own branch (you're working in your own branch right?) and you can git reset --hard [previous commit sha]*
 ```
 
-*Note: When low on memory, docker-sync will have trouble syncing. This manifests itself with copyconflict files. If you find copy conflicts everywhere, free up some memory and if you're working in your own branch (you're working in your own branch right?), git reset --hard [previous commit sha] *
-
-TODO look into docker-osx-dev (1 way with Rsync)
+#### Alternatives  
+docker-osx-dev (1 way with Rsync)
 https://github.com/brikis98/docker-osx-dev
 https://www.ybrikman.com/writing/2015/05/19/docker-osx-dev/
 
 
-### Running Container Images
-
-## Flags
-**remove container flag ( --rm )**
-Removes a container after execution has stopped - no dangling containers
-*Note: the --rm flag needs to come after "docker run" or "docker exec"
-
-**volume flag ( -v /full/path:/container/path )**
-eg. mount the current local directory to /app in container
+## Common Flags
+### remove container ( --rm )
 ```
-docker run --rm -v $(pwd):/app composer dump-autoload
+# Removes a container after execution has stopped - no dangling containers
+# Note: the --rm flag needs to come after "docker run" or "docker exec"
 
-
+docker run --rm jamesway/scrapy
 ```
-*Note: inspect the image's dockerfile to see if a work directory is specified. If so, mount the current dir to it and there's no need to specify the work dir (-w).*
 
-**interactive terminal flags ( -it )**
-eg. python interpreter or testing suite or getting bash to poke around in a container
+### volume ( -v )
 ```
+# -v /full/host/path:/container/path
+# to mount the current local directory to /app in container
+
+docker run --rm -v $(pwd):/app jamesway/python36-django startproject myproject
+```  
+
+$(pwd) is a great replacement for my project's directory, but how do I know where to mount my project directory in the container?
+
+1. Inspect the image's dockerfile for a WORK_DIR. Mounting to the WORK_DIR works most of the time.
+2. Specify a WORK_DIR in the container with the ( -w ) flag so that you can mount to it.
+
+### work directory ( -w )
+Specifes the work directory in the container.  
+
+*If the dockerfile species no WORK_DIR, the default WORK_DIR is / (root) which can't be mounted with ( -v )*
+```
+#  -w overrides the WORK_DIR specified in the image's dockerfile.
+
+docker run --rm -w /src -v $(pwd):/src jamesway/php71-cli composer dump-autoload
+```
+
+### interactive terminal( -it )
+If you want to pass input to container prompts, interact with an interpreter or shell into a container you need ( -it ).
+```
+# python interpreter
 docker run --rm  -it python:3.6.4-alpine python
 
-or
-
+# passing commands to container prompts
 docker run --rm -itv $(pwd):/app phpspec/phpspec run
 
-or
-
+# pass /bin/bash as the command to container to get bash
 docker run --rm -it python:3.6-slim /bin/bash
-```
-*Note: when rolling your own image, ( -it ) with /bin/bash makes it easier to figure out package dependencies.*
-*Note: when using an alpine based image, user ( -it ) with /bin/sh*
 
-**work directory - specifies the directory where...the work is done**
-The default work dir is root ( / ) and you can't mount to the container's root directory, so if no work dir is defined in the image and you need to mount a volume, you need to define a work dir.
-```
+# no bash in alpine images :(
+docker run --rm  -it python:3.6.4-alpine python /bin/sh
+
+# hello world
 echo 'print ("hello world")' > helloworld.py
 docker run --rm  -v $(pwd):/code -w /code python:3.6.4-alpine python helloworld.py
 
@@ -95,51 +122,70 @@ echo '<?php echo "hello world"; ?>' > helloworld.php
 docker run --rm  -v $(pwd):/app -w /app php:7.1-cli-alpine php helloworld.php
 ```
 
-### Commands
-
-list docker images and remove
+## Commands
+### Images
 ```
+# list docker images
 docker images
 
-docker rmi [image id] #the first 3 characters are usually unique enough
-```
+# remove an image
+# you can get by with the first 3 characters of the image id, they're usually unique enough
+docker rmi [image_id]
 
-list RUNNING containers
-```docker ps```
-
-*Note: You can't/shouldn't remove a running container without stopping it, but listing the running containers gives you an idea if any container isn't running when it should be. For instance, if mariadb isn't running, you can explicitly run that container - ```docker-compose run mariadb``` - and the start messages will display suggesting it might be a good idea to purge volumes.*
-
-list stopped containers and remove
-```
-docker ps -a
-
-docker rm [container id] #the first 3 characters are usually unique enough
-
-docker rm -v [container id] #removes volumes with container
-```
-
-build an image
-```
+# build an image
+# tag is optional and docker will add the default tag "latest"
 docker build --rm -t image_name:tag dockerfile_dir
 
+# eg:
 docker build --rm -t scrapy-selenium-chrome:latest .
 ```
 
-To list volumes
+#### Tips on building images
+- Shell In First - To identify what commands you need to run and in what order, you can log into the base image and run commands (apt-get/wget/curl) locally until you get the desired state. Make those commands your RUN statements
+- Minimize RUNs - Each run command adds a layer to your image. Each layer adds size. Once the image your image is woking properly, minimize RUNs by chaining ( && ) them together
+- Remove Build Dependencies - To slim down the image more, you can remove build time dependencies using "apt-get purge -y --auto-remove [packages]" in the same RUN statement you installed them.  
+** A RUN layer is independent of other RUN layers. Installing packages in one RUN and removing them in another has NO effect on image size**
+- Use Alpine Base Images - It's easier said than done, but Alpine images are super slim compared to Debian images. The downside is you will have to install and configure just about every aspect of your image manually.
 
-```docker volume ls```
 
-To delete volumes
-
-```docker volume rm [volume id]```
-
-To list and remove dangling volumes that have no containers
+### Containers
+It's a good idea to run keep an eye on and remove dangling containers.
 ```
+# list RUNNING containers
+docker ps
+
+# *Though you can remove a running container with (-f), you shouldn't remove a running container without stopping it first.*  
+# *Listing the running containers gives you an idea if any container isn't running when it should be.*  
+# *For instance, if mariadb isn't running, you can explicitly run that container (eg: docker-compose run mariadb) and the start messages should give you a quick idea of the problem.*  
+# *Running a db in a docker is doable, but suggested for dev only as you'll probably need to purge the (named) volume(s).*
+
+# list stopped containers
+docker ps -a
+
+# remove container
+# again, the first 3 characters of the image id are usually unique enough
+docker rm [container_id]
+
+# removes volumes with container
+# to keep things tidy, it's always a good idea to remove the volume if it doesn't need to persist
+# a better option is to run the container with the --rm flag on the "run" or "exec" and the container and volume will be removed when the container is stopped.
+docker rm -v [container_id]
+```
+
+### Volumes
+It's a good idea to run keep an eye on and remove dangling volumes.
+```
+# list volumes
+docker volume ls
+
+# delete volumes
+# again, the first 3 characters of the image id are usually unique enough
+docker volume rm [volume_id]
+
+# list dangling volumes (volumes without a container)
+# This is here for completeness - I don't really use this too often, the one below is more useful.
 docker volume ls -f dangling=true
 
+# remove dangling volumes with a nested list dangling volumes
 docker volume rm $(docker volume ls -q -f dangling=true)
 ```
-*Note: to prevent dangling volumes use [-v] when removing containers - docker rm -v [container id]*
-
-### Maintenance
-It's a good idea to to keep an eye on and remove dangling containers and dangling volumes
