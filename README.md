@@ -139,12 +139,18 @@ docker build --rm -t image_name:tag dockerfile_dir
 docker build --rm -t scrapy-selenium-chrome:latest .
 ```
 
-#### Tips on building images
+#### Building Images
 - Shell In First - To identify what commands you need to run and in what order, you can log into the base image and run commands (apt-get/wget/curl) locally until you get the desired state. Make those commands your RUN statements
 - Minimize RUNs - Each run command adds a layer to your image. Each layer adds size. Once the image your image is woking properly, minimize RUNs by chaining ( && ) them together
 - Remove Build Dependencies - To slim down the image more, you can remove build time dependencies using "apt-get purge -y --auto-remove [packages]" in the same RUN statement you installed them.  
 ** A RUN layer is independent of other RUN layers. Installing packages in one RUN and removing them in another has NO effect on image size**
 - Use Alpine Base Images - It's easier said than done, but Alpine images are super slim compared to Debian images. The downside is you will have to install and configure just about every aspect of your image manually.
+-Sometimes you need you WORKDIR in your PATH
+```
+ENV APP_PATH /code
+ENV PATH $APP_PATH:$PATH
+WORKDIR $APP_PATH
+```
 
 eg: [https://hub.docker.com/r/jamesway/scrapy/~/dockerfile/]
 
